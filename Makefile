@@ -1,7 +1,7 @@
 .PHONY: test docker push
 
-IMAGE            ?= hjacobs/kube-janitor
-VERSION          ?= $(shell git describe --tags --always --dirty)
+IMAGE            ?= mjhoffman65/kube-janitor
+VERSION          ?= evict
 TAG              ?= $(VERSION)
 
 default: docker

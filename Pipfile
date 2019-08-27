@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 jmespath = "*"
 pykube-ng = "*"
+kubernetes = "*"
 
 [dev-packages]
 flake8 = "*"

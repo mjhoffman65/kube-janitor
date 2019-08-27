@@ -3,9 +3,10 @@ import logging
 from collections import Counter
 
 import pykube
+import kubernetes
 from pykube import Event, Namespace
 
-from .helper import format_duration, parse_expiry, parse_ttl
+from .helper import format_duration, parse_expiry, parse_ttl, get_kubernetes_core_api
 from .resources import get_namespaced_resource_types
 
 logger = logging.getLogger(__name__)
@@ -106,16 +107,26 @@ def create_event(resource, message: str, reason: str, dry_run: bool):
         except Exception as e:
             logger.error(f'Could not create event {event.obj}: {e}')
 
+def evict(pod_name, namespace):
+    meta = kubernetes.client.V1ObjectMeta()
+    meta.name = pod_name
+    eviction_body = kubernetes.client.V1beta1Eviction()
+    eviction_body.metadata = meta
+    get_kubernetes_core_api().create_namespaced_pod_eviction(f'evict_{pod_name}', namespace, eviction_body)
 
 def delete(resource, dry_run: bool):
     if dry_run:
         logger.info(f'**DRY-RUN**: would delete {resource.kind} {resource.namespace}/{resource.name}')
     else:
-        logger.info(f'Deleting {resource.kind} {resource.namespace or ""}{"/" if resource.namespace else ""}{resource.name}..')
         try:
-            # force cascading delete also for older objects (e.g. extensions/v1beta1)
-            # see https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#setting-the-cascading-deletion-policy
-            resource.delete(propagation_policy='Foreground')
+            if resource.kind == 'Pod':
+                logger.info(f'Evicting {resource.kind} {resource.namespace or ""}{"/" if resource.namespace else ""}{resource.name}..')
+                evict(resource.name, resource.namespace)
+            else:
+                logger.info(f'Deleting {resource.kind} {resource.namespace or ""}{"/" if resource.namespace else ""}{resource.name}..')
+                # force cascading delete also for older objects (e.g. extensions/v1beta1)
+                # see https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#setting-the-cascading-deletion-policy
+                resource.delete(propagation_policy='Foreground')
         except Exception as e:
             logger.error(f'Could not delete {resource.kind} {resource.namespace}/{resource.name}: {e}')
 

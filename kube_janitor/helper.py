@@ -3,6 +3,7 @@ import os
 import datetime
 import pykube
 import re
+import kubernetes
 
 
 TIME_UNIT_TO_SECONDS = {
@@ -78,3 +79,12 @@ def get_kube_api():
         config = pykube.KubeConfig.from_file(os.getenv('KUBECONFIG', '~/.kube/config'))
     api = pykube.HTTPClient(config)
     return api
+
+# pykube does not support evictions
+def get_kubernetes_core_api():
+    try:
+        kubernetes.config.load_incluster_config()
+    except:
+        kubernetes.config.load_kube_config()
+
+    return kubernetes.client.CoreV1Api()
